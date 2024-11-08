@@ -3,7 +3,9 @@
  */ 
  
 #include <avr/io.h>
+#include <util/delay.h>
 #include "uart.h"
+#include "twi.h"
  
 #ifndef F_CPU
 #warning  "You haven't defined F_CPU. I'm using F_CPU = 3333333 "
@@ -51,6 +53,7 @@ void uart_print(const char* str) {
  
 void setup() {
     uart_init();
+    twi_init();
 }
  
 void loop() {
@@ -60,16 +63,18 @@ void loop() {
  
 int main(void)
 {
-    setup();
- 
-    while (1)
-    {
-        uart_print("System running...\r\n");
-        if (usart_ischar())
-        {
-            //usart_putchar(usart_getchar());
-            
-        }
-        loop();
+    // UART initialisieren
+    uart_init();
+    
+    while (1) {
+        // Einzelnes 'A' senden
+        USART0.TXDATAL = 'A';
+        
+        // Warten bis Zeichen gesendet
+        while (!(USART0.STATUS & USART_DREIF_bm));
+        
+        _delay_ms(1000);
     }
+    
+    return 0;
 }
