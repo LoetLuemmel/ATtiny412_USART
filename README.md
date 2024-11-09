@@ -48,7 +48,7 @@ Danke an Claude, natürlich an Anthropic und auch danke an das Microsoft VSCode/
 This project demonstrates UART and I2C communication with an ATtiny412 microcontroller.
 
 ## Hardware
-- [ATtiny412 Curiosity Nano](https://www.microchip.com/en-us/development-tool/DM080104)
+- [ATtiny412 Curiosity Nano]([https://www.microchip.com/en-us/development-tool/DM080104](https://www.microchip.com/en-us/search?searchQuery=ATTINY412&category=ALL&fq=start%3D0%26rows%3D10))
 - [BME680 Environmental Sensor](https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme680/)
 
 ## Pinout
