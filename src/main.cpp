@@ -1,14 +1,60 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include "uart.h"
+#include "twi.h"
 
+#define BME680_ADDR 0x76
+
+// Struct für Kalibrierungsdaten
 struct bme680_calib {
     uint16_t par_t1;
     int16_t par_t2;
     int8_t par_t3;
 };
 
+// Globale Variable für t_fine
 int32_t t_fine;
+
+// Funktionsdeklarationen
+bool write_register(uint8_t reg, uint8_t data);
+uint8_t read_register(uint8_t reg);
+int16_t calc_temp(uint32_t temp_raw, struct bme680_calib *calib);
+
+// Funktionsimplementierungen
+bool write_register(uint8_t reg, uint8_t data) {
+    if (!twi_start(BME680_ADDR << 1)) {
+        uart_send_string("Error: BME680 not responding!\r\n");
+        return false;
+    }
+    if (!twi_write(reg)) {
+        twi_stop();
+        return false;
+    }
+    if (!twi_write(data)) {
+        twi_stop();
+        return false;
+    }
+    twi_stop();
+    return true;
+}
+
+uint8_t read_register(uint8_t reg) {
+    if (!twi_start(BME680_ADDR << 1)) {
+        uart_send_string("Error: BME680 not responding!\r\n");
+        return 0;
+    }
+    if (!twi_write(reg)) {
+        twi_stop();
+        return 0;
+    }
+    if (!twi_start((BME680_ADDR << 1) | 1)) {
+        twi_stop();
+        return 0;
+    }
+    uint8_t data = twi_read(false);
+    twi_stop();
+    return data;
+}
 
 int16_t calc_temp(uint32_t temp_raw, struct bme680_calib *calib) {
     int64_t var1, var2, var3;
@@ -20,63 +66,25 @@ int16_t calc_temp(uint32_t temp_raw, struct bme680_calib *calib) {
     return (int16_t)((t_fine * 5 + 128) >> 8);
 }
 
-void twi_init(void) {
-    TWI0.MCTRLA = 0;                     // Disable TWI
-    _delay_us(10);
-    
-    PORTA.DIRCLR = PIN1_bm | PIN2_bm;    // Release TWI pins
-    PORTA.PIN1CTRL = 0;                  // No pullup for SCL
-    PORTA.PIN2CTRL = 0;                  // No pullup for SDA
-    
-    TWI0.MBAUD = 5;                      // 100kHz @ 3.33MHz
-    TWI0.MCTRLA = TWI_ENABLE_bm;         // Enable TWI
-    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc; // Force IDLE state
-    
-    _delay_us(10);                       // Wait a bit
-}
-
-uint8_t read_register(uint8_t reg) {
-    // Write register address
-    TWI0.MADDR = 0x76 << 1;              // Write address
-    while (!(TWI0.MSTATUS & TWI_WIF_bm)) { ; }
-    
-    TWI0.MDATA = reg;                    // Register to read
-    while (!(TWI0.MSTATUS & TWI_WIF_bm)) { ; }
-    
-    // Read register value
-    TWI0.MADDR = (0x76 << 1) | 1;        // Read address
-    while (!(TWI0.MSTATUS & TWI_RIF_bm)) { ; }
-    
-    uint8_t data = TWI0.MDATA;           // Read data
-    TWI0.MCTRLB = TWI_MCMD_STOP_gc;      // Send STOP
-    
-    // Re-init TWI
-    twi_init();
-    
-    return data;
-}
-
-void write_register(uint8_t reg, uint8_t value) {
-    // Write register address
-    TWI0.MADDR = 0x76 << 1;              // Write address
-    while (!(TWI0.MSTATUS & TWI_WIF_bm)) { ; }
-    
-    TWI0.MDATA = reg;                    // Register to write
-    while (!(TWI0.MSTATUS & TWI_WIF_bm)) { ; }
-    
-    TWI0.MDATA = value;                  // Write data
-    while (!(TWI0.MSTATUS & TWI_WIF_bm)) { ; }
-    
-    TWI0.MCTRLB = TWI_MCMD_STOP_gc;      // Send STOP
-    
-    // Re-init TWI
-    twi_init();
-}
-
 int main(void) {
     uart_init();
     twi_init();
-    uart_send_string("BME\r\n");
+    
+    uart_send_string("\r\nBME680 Test\r\n");
+    uart_send_string("-----------\r\n");
+    
+    // Test if sensor responds
+    uart_send_string("Scanning for BME680 at address 0x");
+    uart_send_byte((BME680_ADDR >> 4) < 10 ? '0' + (BME680_ADDR >> 4) : 'A' + (BME680_ADDR >> 4) - 10);
+    uart_send_byte((BME680_ADDR & 0x0F) < 10 ? '0' + (BME680_ADDR & 0x0F) : 'A' + (BME680_ADDR & 0x0F) - 10);
+    uart_send_string("...\r\n");
+    
+    if (!twi_start(BME680_ADDR << 1)) {
+        uart_send_string("Error: No BME680 sensor found!\r\n");
+        while(1);  // Stop here
+    }
+    twi_stop();
+    uart_send_string("BME680 found!\r\n\n");
     
     write_register(0xE0, 0xB6);  // Reset
     _delay_ms(2);
