@@ -1,4 +1,4 @@
-ATtiny412
+ATtiny412 mit USART und I2C Kommunikation
 =========
 
 
