@@ -1,10 +1,6 @@
-#ifndef UART_H
-#define UART_H
-
-#define F_CPU 3333333UL
-#define BAUD_RATE 9600
-#define UROUND(x) ((2UL*(x)+1)/2)
+#pragma once
+#include <avr/io.h>
 
 void uart_init(void);
-
-#endif 
+void uart_send_byte(uint8_t byte);
+void uart_send_string(const char* str);
