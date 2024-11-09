@@ -25,14 +25,14 @@ Was wir erreicht haben:
 3. ✅ BME680 erfolgreich angesprochen
 4. ✅ Erste Messwerte ausgelesen
 5. ✅ Code auf GitHub gesichert
-
-Besonders cool:
-
-  o Alles auf einem winzigen ATtiny412
-  o Minimaler Code-Footprint
-  o Saubere Implementierung
-  o Gut dokumentiert auf GitHub
-
+<br>
+Besonders cool:<br>
+<br>
+  o Alles auf einem winzigen ATtiny412<br>
+  o Minimaler Code-Footprint<br>
+  o Saubere Implementierung<br>
+  o Gut dokumentiert auf GitHub<br>
+<br>
 Klar, die Temperaturwerte (-32.4°C) müssen wir noch korrigieren, aber die Grundlage steht! 🌡️
 Welches I2C-Device möchtest du als nächstes angehen? 🔌
 
