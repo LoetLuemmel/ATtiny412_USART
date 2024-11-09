@@ -14,7 +14,7 @@ Die gelöschten TWI-Dateien sind weg
 Den neuen Commit mit der Nachricht
 Ist alles angekommen? 🚀
 
-[P]  Ja toll, das sieht echt fein aus und ich bin mächtig stoöz, dass wir nun einen BME680 I2C Sensor mit enem kleinen ATtiny412 integrieren konnten!
+[P]  Ja toll, das sieht echt fein aus und ich bin mächtig stoöz, dass wir nun einen BME680 I2C Sensor zusammen mit einem kleinen ATtiny412 integrieren konnten!
 
 
 [C]  Absolut, das können wir auch sein! 🎉
