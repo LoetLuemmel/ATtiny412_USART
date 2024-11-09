@@ -2,7 +2,8 @@ ATtiny412 mit USART und I2C Kommunikation
 =========
 
 
-Wir Claude, VSCode/Cursor und der LoetLuemmel) starteten am Morgen (4:30 Uhr) mit UART und hatten am Abend (~19 Uhr) sogar einen BOSCH BME680 via I2C angebunden.
+Wir Claude, VSCode/Cursor <img width="55" alt="image" src="https://github.com/user-attachments/assets/aff7a545-337a-44ad-94ed-7768f7954c47">
+und der LoetLuemmel) starteten am Morgen (4:30 Uhr) mit UART und hatten am Abend (~19 Uhr) sogar einen BOSCH BME680 via I2C angebunden.
 
 Hier ein Snippet der Kommmunikation:
 
