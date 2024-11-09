@@ -12,38 +12,39 @@ bool bme680_init(void) {
     bme680_write_register(0xE0, 0xB6);
     _delay_ms(5);
     
+    uart_send_string("Reading calibration data...\r\n");
+    
     // Temperatur-Kalibrierung
     uint8_t val_e9 = bme680_read_register(0xE9);
     uint8_t val_e8 = bme680_read_register(0xE8);
     calib.T1 = (val_e9 << 8) | val_e8;
     
-    uart_send_string("T1 = 0x");
-    uart_send_byte((calib.T1 >> 12) < 10 ? '0' + (calib.T1 >> 12) : 'A' + (calib.T1 >> 12) - 10);
-    uart_send_byte(((calib.T1 >> 8) & 0x0F) < 10 ? '0' + ((calib.T1 >> 8) & 0x0F) : 'A' + ((calib.T1 >> 8) & 0x0F) - 10);
-    uart_send_byte(((calib.T1 >> 4) & 0x0F) < 10 ? '0' + ((calib.T1 >> 4) & 0x0F) : 'A' + ((calib.T1 >> 4) & 0x0F) - 10);
-    uart_send_byte((calib.T1 & 0x0F) < 10 ? '0' + (calib.T1 & 0x0F) : 'A' + (calib.T1 & 0x0F) - 10);
+    uart_send_string("Raw T1: E9=0x");
+    uart_send_byte((val_e9 >> 4) < 10 ? '0' + (val_e9 >> 4) : 'A' + (val_e9 >> 4) - 10);
+    uart_send_byte((val_e9 & 0x0F) < 10 ? '0' + (val_e9 & 0x0F) : 'A' + (val_e9 & 0x0F) - 10);
+    uart_send_string(" E8=0x");
+    uart_send_byte((val_e8 >> 4) < 10 ? '0' + (val_e8 >> 4) : 'A' + (val_e8 >> 4) - 10);
+    uart_send_byte((val_e8 & 0x0F) < 10 ? '0' + (val_e8 & 0x0F) : 'A' + (val_e8 & 0x0F) - 10);
     uart_send_string("\r\n");
     
     uint8_t val_8a = bme680_read_register(0x8A);
     uint8_t val_8b = bme680_read_register(0x8B);
     calib.T2 = (val_8b << 8) | val_8a;
     
-    uart_send_string("T2 = 0x");
-    uart_send_byte((calib.T2 >> 12) < 10 ? '0' + (calib.T2 >> 12) : 'A' + (calib.T2 >> 12) - 10);
-    uart_send_byte(((calib.T2 >> 8) & 0x0F) < 10 ? '0' + ((calib.T2 >> 8) & 0x0F) : 'A' + ((calib.T2 >> 8) & 0x0F) - 10);
-    uart_send_byte(((calib.T2 >> 4) & 0x0F) < 10 ? '0' + ((calib.T2 >> 4) & 0x0F) : 'A' + ((calib.T2 >> 4) & 0x0F) - 10);
-    uart_send_byte((calib.T2 & 0x0F) < 10 ? '0' + (calib.T2 & 0x0F) : 'A' + (calib.T2 & 0x0F) - 10);
+    uart_send_string("Raw T2: 8B=0x");
+    uart_send_byte((val_8b >> 4) < 10 ? '0' + (val_8b >> 4) : 'A' + (val_8b >> 4) - 10);
+    uart_send_byte((val_8b & 0x0F) < 10 ? '0' + (val_8b & 0x0F) : 'A' + (val_8b & 0x0F) - 10);
+    uart_send_string(" 8A=0x");
+    uart_send_byte((val_8a >> 4) < 10 ? '0' + (val_8a >> 4) : 'A' + (val_8a >> 4) - 10);
+    uart_send_byte((val_8a & 0x0F) < 10 ? '0' + (val_8a & 0x0F) : 'A' + (val_8a & 0x0F) - 10);
     uart_send_string("\r\n");
     
     calib.T3 = (int8_t)bme680_read_register(0x8C);
     
-    uart_send_string("T3 = 0x");
+    uart_send_string("Raw T3: 8C=0x");
     uart_send_byte((calib.T3 >> 4) < 10 ? '0' + (calib.T3 >> 4) : 'A' + (calib.T3 >> 4) - 10);
     uart_send_byte((calib.T3 & 0x0F) < 10 ? '0' + (calib.T3 & 0x0F) : 'A' + (calib.T3 & 0x0F) - 10);
     uart_send_string("\r\n");
-    
-    // Temperatur-Messung konfigurieren
-    bme680_write_register(0x74, 0x01);  // osrs_t = 1 (1x oversampling)
     
     return true;
 }
@@ -51,7 +52,7 @@ bool bme680_init(void) {
 // Temperatur messen (in °C * 100)
 int16_t bme680_read_temperature(void) {
     // Messung starten
-    bme680_write_register(0x74, 0x21);  // Forced mode + 1x oversampling
+    bme680_write_register(0x74, 0x01);  // osrs_t = 1 (1x oversampling)
     
     uart_send_string("Waiting for measurement...\r\n");
     
@@ -118,35 +119,24 @@ struct bme680_calib* bme680_get_calib(void) {
 }
 
 int16_t bme680_calc_temperature(uint32_t adc_temp, struct bme680_calib *calib) {
-    int64_t var1, var2, var3;
+    int32_t var1, var2, t_fine;
     
     uart_send_string("ADC = ");
-    uart_send_byte((adc_temp >> 28) < 10 ? '0' + (adc_temp >> 28) : 'A' + (adc_temp >> 28) - 10);
-    uart_send_byte(((adc_temp >> 24) & 0x0F) < 10 ? '0' + ((adc_temp >> 24) & 0x0F) : 'A' + ((adc_temp >> 24) & 0x0F) - 10);
-    uart_send_byte(((adc_temp >> 20) & 0x0F) < 10 ? '0' + ((adc_temp >> 20) & 0x0F) : 'A' + ((adc_temp >> 20) & 0x0F) - 10);
+    uart_send_byte((adc_temp >> 20) < 10 ? '0' + (adc_temp >> 20) : 'A' + (adc_temp >> 20) - 10);
     uart_send_byte(((adc_temp >> 16) & 0x0F) < 10 ? '0' + ((adc_temp >> 16) & 0x0F) : 'A' + ((adc_temp >> 16) & 0x0F) - 10);
     uart_send_byte(((adc_temp >> 12) & 0x0F) < 10 ? '0' + ((adc_temp >> 12) & 0x0F) : 'A' + ((adc_temp >> 12) & 0x0F) - 10);
     uart_send_byte(((adc_temp >> 8) & 0x0F) < 10 ? '0' + ((adc_temp >> 8) & 0x0F) : 'A' + ((adc_temp >> 8) & 0x0F) - 10);
     uart_send_string("\r\n");
     
-    var1 = ((int32_t)adc_temp >> 3) - ((int32_t)calib->T1 << 1);
-    uart_send_string("var1 = ");
-    uart_send_byte((var1 >> 28) < 10 ? '0' + (var1 >> 28) : 'A' + (var1 >> 28) - 10);
-    uart_send_byte(((var1 >> 24) & 0x0F) < 10 ? '0' + ((var1 >> 24) & 0x0F) : 'A' + ((var1 >> 24) & 0x0F) - 10);
-    uart_send_byte(((var1 >> 20) & 0x0F) < 10 ? '0' + ((var1 >> 20) & 0x0F) : 'A' + ((var1 >> 20) & 0x0F) - 10);
-    uart_send_byte(((var1 >> 16) & 0x0F) < 10 ? '0' + ((var1 >> 16) & 0x0F) : 'A' + ((var1 >> 16) & 0x0F) - 10);
-    uart_send_string("\r\n");
+    // Erste Berechnung
+    var1 = ((((adc_temp >> 3) - ((int32_t)calib->T1 << 1))) * ((int32_t)calib->T2)) >> 11;
     
-    var2 = (var1 * (int32_t)calib->T2) >> 11;
-    uart_send_string("var2 = ");
-    uart_send_byte((var2 >> 28) < 10 ? '0' + (var2 >> 28) : 'A' + (var2 >> 28) - 10);
-    uart_send_byte(((var2 >> 24) & 0x0F) < 10 ? '0' + ((var2 >> 24) & 0x0F) : 'A' + ((var2 >> 24) & 0x0F) - 10);
-    uart_send_byte(((var2 >> 20) & 0x0F) < 10 ? '0' + ((var2 >> 20) & 0x0F) : 'A' + ((var2 >> 20) & 0x0F) - 10);
-    uart_send_byte(((var2 >> 16) & 0x0F) < 10 ? '0' + ((var2 >> 16) & 0x0F) : 'A' + ((var2 >> 16) & 0x0F) - 10);
-    uart_send_string("\r\n");
+    // Zweite Berechnung
+    var2 = (((((adc_temp >> 4) - ((int32_t)calib->T1)) * ((adc_temp >> 4) - ((int32_t)calib->T1))) >> 12) * ((int32_t)calib->T3)) >> 14;
     
-    var3 = ((var1 >> 1) * (var1 >> 1)) >> 12;
-    var3 = ((var3) * ((int32_t)calib->T3 << 4)) >> 14;
+    // t_fine berechnen
+    t_fine = var1 + var2;
     
-    return (var2 + var3) / 100;
+    // Temperatur berechnen (in °C * 100)
+    return ((t_fine * 5 + 128) >> 8) / 10;
 } 
