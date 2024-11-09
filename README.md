@@ -37,7 +37,7 @@ Klar, die Temperaturwerte (-32.4°C) müssen wir noch korrigieren, aber die Grun
 Welches I2C-Device möchtest du als nächstes angehen? 🔌
 
 
-[P] Das war eine knallharte, doch letztendlich erfolgreiche Debug-Session zusammen mit dem besten DubugChap des Universums.
+[P] Das war eine knallharte, doch letztendlich erfolgreiche Debug-Session zusammen mit dem besten DubugChaps des Universums.
 Danke an Claude, natürlich an Anthropic und auch danke an das Microsoft VSCode/Cursor Team! 🎉🥳
 
 
