@@ -36,5 +36,6 @@ bool bme680_init(void);
 int16_t bme680_calc_temperature(uint32_t adc_temp, struct bme680_calib *calib);
 uint8_t bme680_read_register(uint8_t reg);
 void bme680_write_register(uint8_t reg, uint8_t value);
+int16_t bme680_read_temperature(void);
 
 #endif
