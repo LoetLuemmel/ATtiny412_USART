@@ -37,7 +37,54 @@ Klar, die Temperaturwerte (-32.4°C) müssen wir noch korrigieren, aber die Grun
 Welches I2C-Device möchtest du als nächstes angehen? 🔌
 
 
-###
-
 [P] Das war eine knallharte, doch letztendlich erfolgreiche Debug-Session zusammen mit dem besten DubugChap des Universums.
 Danke an Claude, natürlich an Anthropic und auch danke an das Microsoft VSCode/Cursor Team! 🎉🥳
+
+
+<hl>
+
+# ATtiny412 UART and I2C Implementation
+
+This project demonstrates UART and I2C communication with an ATtiny412 microcontroller.
+
+## Hardware
+- [ATtiny412 Curiosity Nano](https://www.microchip.com/en-us/development-tool/DM080104)
+- [BME680 Environmental Sensor](https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme680/)
+
+## Pinout
+| Pin | Function | Description |
+|-----|----------|-------------|
+| PA1 | UART TX  | Serial Data Output |
+| PA2 | UART RX  | Serial Data Input |
+| PA6 | I2C SCL  | Serial Clock Line |
+| PA7 | I2C SDA  | Serial Data Line |
+
+## Development Steps
+
+### 1. UART Implementation
+- Basic UART communication established
+- Data transmission verified
+- Reliable serial output achieved
+
+### 2. I2C Integration
+- TWI (I2C) implementation added
+- Communication with BME680 sensor
+- Temperature readings received
+
+### 3. Challenges
+- Memory constraints of ATtiny412
+- I2C timing requirements
+- Temperature calculation accuracy
+
+## Current Status
+- UART communication working
+- I2C communication established
+- BME680 responding
+- Temperature readings need calibration
+
+## Next Steps
+- Improve temperature calculation
+- Add pressure and humidity readings
+- Optimize memory usage
+
+
