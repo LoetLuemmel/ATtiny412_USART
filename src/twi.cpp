@@ -8,45 +8,101 @@
 void twi_init(void) {
     uart_send_string("Initializing TWI...\r\n");
     
-    // TWI0 Pins konfigurieren (PA2=SDA, PA3=SCL)
-    PORTA.DIRCLR = PIN2_bm | PIN3_bm;  // Als Eingang konfigurieren
-    PORTA.PIN2CTRL = PORT_PULLUPEN_bm | PORT_ISC_INPUT_DISABLE_gc;  // Pull-up für SDA, Input Disable
-    PORTA.PIN3CTRL = PORT_PULLUPEN_bm | PORT_ISC_INPUT_DISABLE_gc;  // Pull-up für SCL, Input Disable
-    
     // TWI komplett ausschalten
     TWI0.MCTRLA = 0;
-    _delay_ms(10);
+    
+    // TWI0 Pins konfigurieren (PA2=SDA, PA3=SCL)
+    PORTA.DIRCLR = PIN2_bm | PIN3_bm;  // Als Eingang konfigurieren
+    PORTA.PIN2CTRL = PORT_PULLUPEN_bm;  // Pull-up für SDA
+    PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
+    
+    _delay_ms(1);  // Warten bis Pull-ups aktiv sind
     
     // Bus manuell zurücksetzen
-    PORTA.DIRSET = PIN2_bm | PIN3_bm;  // Beide als Ausgang
-    PORTA.OUTSET = PIN2_bm | PIN3_bm;  // Beide high
-    _delay_ms(1);
-    
     for(uint8_t i = 0; i < 9; i++) {
-        PORTA.OUTCLR = PIN3_bm;  // SCL low
-        _delay_us(10);
-        PORTA.OUTSET = PIN3_bm;  // SCL high
-        _delay_us(10);
+        PORTA.DIRSET = PIN3_bm;     // SCL als Ausgang
+        PORTA.OUTCLR = PIN3_bm;     // SCL low
+        _delay_us(5);
+        PORTA.DIRCLR = PIN3_bm;     // SCL als Eingang (wird durch Pull-up high)
+        _delay_us(5);
     }
     
-    // SDA Transition während SCL high (STOP condition)
-    PORTA.OUTCLR = PIN2_bm;  // SDA low
-    _delay_us(10);
-    PORTA.OUTSET = PIN2_bm;  // SDA high
-    _delay_us(10);
-    
-    // Pins zurück als Eingang
-    PORTA.DIRCLR = PIN2_bm | PIN3_bm;
-    
     // TWI neu konfigurieren
-    TWI0.CTRLA = 0;  // Sicherstellen, dass alles aus ist
-    TWI0.MBAUD = 8;  // Höhere Geschwindigkeit testen
-    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    TWI0.MBAUD = 16;        // Mittlere Geschwindigkeit
     TWI0.MCTRLA = TWI_ENABLE_bm;
+    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     
-    _delay_ms(10);
+    _delay_ms(1);
     
     uart_send_string("TWI initialized\r\n");
+}
+
+bool twi_write(uint8_t data) {
+    uart_send_string("TWI: Writing data 0x");
+    uart_send_byte((data >> 4) < 10 ? '0' + (data >> 4) : 'A' + (data >> 4) - 10);
+    uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
+    TWI0.MDATA = data;
+    
+    // Warten auf Write Complete mit Timeout
+    uint16_t timeout = 1000;
+    while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
+        _delay_us(1);
+        timeout--;
+    }
+    
+    if (timeout == 0) {
+        uart_send_string("TWI: Timeout waiting for write!\r\n");
+        return false;
+    }
+    
+    if (TWI0.MSTATUS & TWI_RXACK_bm) {
+        uart_send_string("TWI: No ACK received!\r\n");
+        return false;
+    }
+    
+    uart_send_string("TWI: Write successful\r\n");
+    return true;
+}
+
+uint8_t twi_read(bool ack) {
+    uart_send_string("TWI: Waiting for data...\r\n");
+    
+    // Master muss ACK/NACK vorbereiten bevor Daten empfangen werden
+    if (ack) {
+        TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
+    } else {
+        // Für NACK senden wir einfach einen STOP nach dem Lesen
+        TWI0.MCTRLB = TWI_MCMD_NOACT_gc;
+    }
+    
+    // Warten auf Daten mit Timeout
+    uint16_t timeout = 1000;
+    while (!(TWI0.MSTATUS & TWI_RIF_bm) && timeout > 0) {
+        _delay_us(1);
+        timeout--;
+    }
+    
+    if (timeout == 0) {
+        uart_send_string("TWI: Timeout waiting for data!\r\n");
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+        return 0;
+    }
+    
+    uint8_t data = TWI0.MDATA;
+    
+    uart_send_string("TWI: Received data 0x");
+    uart_send_byte((data >> 4) < 10 ? '0' + (data >> 4) : 'A' + (data >> 4) - 10);
+    uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
+    // Stop wenn NACK
+    if (!ack) {
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+    }
+    
+    return data;
 }
 
 bool twi_start(uint8_t addr) {
@@ -86,70 +142,6 @@ bool twi_start(uint8_t addr) {
     
     uart_send_string("TWI: Start successful\r\n");
     return true;
-}
-
-bool twi_write(uint8_t data) {
-    uart_send_string("TWI: Writing data 0x");
-    uart_send_byte((data >> 4) < 10 ? '0' + (data >> 4) : 'A' + (data >> 4) - 10);
-    uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
-    TWI0.MDATA = data;
-    
-    // Warten auf Write Complete mit Timeout
-    uint16_t timeout = 1000;
-    while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
-        _delay_us(1);
-        timeout--;
-    }
-    
-    if (timeout == 0) {
-        uart_send_string("TWI: Timeout waiting for write!\r\n");
-        return false;
-    }
-    
-    bool success = !(TWI0.MSTATUS & TWI_RXACK_bm);
-    if (!success) {
-        uart_send_string("TWI: Write failed!\r\n");
-    } else {
-        uart_send_string("TWI: Write successful\r\n");
-    }
-    return success;
-}
-
-uint8_t twi_read(bool ack) {
-    uart_send_string("TWI: Waiting for data...\r\n");
-    
-    // Explizit RECVTRANS senden
-    TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
-    _delay_us(100);
-    
-    // Warten auf Daten mit Timeout
-    uint16_t timeout = 5000;
-    while (!(TWI0.MSTATUS & TWI_RIF_bm) && timeout > 0) {
-        _delay_us(1);
-        timeout--;
-    }
-    
-    if (timeout == 0) {
-        uart_send_string("TWI: Timeout waiting for data!\r\n");
-        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-        _delay_ms(1);
-        return 0;
-    }
-    
-    uint8_t data = TWI0.MDATA;
-    
-    uart_send_string("TWI: Received data 0x");
-    uart_send_byte((data >> 4) < 10 ? '0' + (data >> 4) : 'A' + (data >> 4) - 10);
-    uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
-    // ACK/NACK senden
-    TWI0.MCTRLB = ack ? TWI_MCMD_RECVTRANS_gc : TWI_MCMD_STOP_gc;
-    _delay_us(100);
-    
-    return data;
 }
 
 bool bme680_read_register(uint8_t reg, uint8_t *data) {
