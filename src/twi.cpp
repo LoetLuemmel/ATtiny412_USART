@@ -3,36 +3,30 @@
 #include "twi.h"
 #include "uart.h"
 
-#define BME680_ADDR 0x77  // Ändern wir die Adresse auf die alternative Adresse
+#define BME680_ADDR_LOW  0x76  // SDO pin = GND
+#define BME680_ADDR_HIGH 0x77  // SDO pin = VDD
 
 void twi_init(void) {
     uart_send_string("Initializing TWI...\r\n");
     
-    // TWI komplett ausschalten
-    TWI0.MCTRLA = 0;
-    
-    // TWI0 Pins konfigurieren (PA2=SDA, PA3=SCL)
-    PORTA.DIRCLR = PIN2_bm | PIN3_bm;  // Als Eingang konfigurieren
-    PORTA.PIN2CTRL = PORT_PULLUPEN_bm;  // Pull-up für SDA
-    PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
-    
-    _delay_ms(1);  // Warten bis Pull-ups aktiv sind
-    
-    // Bus manuell zurücksetzen
-    for(uint8_t i = 0; i < 9; i++) {
-        PORTA.DIRSET = PIN3_bm;     // SCL als Ausgang
-        PORTA.OUTCLR = PIN3_bm;     // SCL low
-        _delay_us(5);
-        PORTA.DIRCLR = PIN3_bm;     // SCL als Eingang (wird durch Pull-up high)
-        _delay_us(5);
-    }
+    // TWI0 Pins konfigurieren (PA1=SDA, PA2=SCL)
+    PORTA.DIRCLR = PIN1_bm | PIN2_bm;  // Als Eingang konfigurieren
     
     // TWI neu konfigurieren
-    TWI0.MBAUD = 16;        // Mittlere Geschwindigkeit
+    TWI0.MBAUD = 16;        // 100kHz bei 3.3MHz CPU
     TWI0.MCTRLA = TWI_ENABLE_bm;
     TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     
-    _delay_ms(1);
+    // Teste beide möglichen Adressen
+    if (twi_start(BME680_ADDR_LOW << 1)) {
+        uart_send_string("BME680 found at address 0x76\r\n");
+        twi_stop();
+    } else if (twi_start(BME680_ADDR_HIGH << 1)) {
+        uart_send_string("BME680 found at address 0x77\r\n");
+        twi_stop();
+    } else {
+        uart_send_string("No BME680 found!\r\n");
+    }
     
     uart_send_string("TWI initialized\r\n");
 }
@@ -138,7 +132,7 @@ bool bme680_read_register(uint8_t reg, uint8_t *data) {
     uart_send_string("\r\n");
     
     // Schreibe Register-Adresse
-    if (!twi_start(BME680_ADDR << 1)) {
+    if (!twi_start(BME680_ADDR_LOW << 1)) {
         uart_send_string("TWI: Start (write) failed\r\n");
         return false;
     }
@@ -151,7 +145,7 @@ bool bme680_read_register(uint8_t reg, uint8_t *data) {
     
     // Repeated Start für Lesen
     _delay_us(100);  // Kurze Pause vor Repeated Start
-    if (!twi_start((BME680_ADDR << 1) | 1)) {
+    if (!twi_start((BME680_ADDR_LOW << 1) | 1)) {
         uart_send_string("TWI: Start (read) failed\r\n");
         twi_stop();
         return false;
