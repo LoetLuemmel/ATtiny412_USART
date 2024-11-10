@@ -151,3 +151,184 @@ TWI: Timeout waiting for bus idle!
 Initializing TWI...
 TWI initialized
 00.00 °C
+
+
+#######
+
+
+Part Initialization
+
+TWI: Writing to register 0x74
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x74
+TWI: Write successful
+TWI: Writing data 0x21
+TWI: Write successful
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x1D
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x22
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start failed
+TWI: Writing data 0x23
+TWI: Timeout waiting for write!
+TWI: Start with addr 0xED
+TWI: Start failed
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x24
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+00.00 °C
+TWI: Writing to register 0x74
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x74
+TWI: Write successful
+TWI: Writing data 0x21
+TWI: Write successful
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x1D
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x22
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start failed
+TWI: Writing data 0x23
+TWI: Timeout waiting for write!
+TWI: Start with addr 0xED
+TWI: Start failed
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x24
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+00.00 °C
+TWI: Writing to register 0x74
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x74
+TWI: Write successful
+TWI: Writing data 0x21
+TWI: Write successful
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x1D
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x22
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start failed
+TWI: Writing data 0x23
+TWI: Timeout waiting for write!
+TWI: Start with addr 0xED
+TWI: Start failed
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Stop successful
+Initializing TWI...
+TWI initialized
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x24
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start failed
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Stop successful
+Initializing TWI...
+TWI initialized
+00.00 °C

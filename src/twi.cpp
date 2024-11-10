@@ -7,7 +7,7 @@ void twi_init(void) {
     uart_send_string("Initializing TWI...\r\n");
     
     // TWI0 Pins konfigurieren (PA2=SDA, PA3=SCL)
-    PORTA.DIRSET = PIN2_bm | PIN3_bm;
+    PORTA.DIRCLR = PIN2_bm | PIN3_bm;  // Als Eingang konfigurieren
     PORTA.PIN2CTRL = PORT_PULLUPEN_bm;  // Pull-up für SDA
     PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
     
@@ -15,6 +15,10 @@ void twi_init(void) {
     TWI0.MBAUD = 12;        // 100kHz bei 3.3MHz
     TWI0.MCTRLA = TWI_ENABLE_bm;
     TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    
+    // Bus zurücksetzen
+    TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+    _delay_ms(1);
     
     uart_send_string("TWI initialized\r\n");
 }
@@ -44,6 +48,7 @@ bool twi_start(uint8_t addr) {
     if (timeout == 0 || (TWI0.MSTATUS & TWI_RXACK_bm)) {
         uart_send_string("TWI: Start failed\r\n");
         TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+        _delay_ms(1);  // Warten nach Stop
         return false;
     }
     
