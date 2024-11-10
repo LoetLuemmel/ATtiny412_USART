@@ -6,11 +6,13 @@
 void twi_init(void) {
     uart_send_string("Initializing TWI...\r\n");
     
+    // TWI0 Pins konfigurieren (PA2=SDA, PA3=SCL)
     PORTA.DIRSET = PIN2_bm | PIN3_bm;
-    PORTA.PIN2CTRL = PORT_PULLUPEN_bm;
-    PORTA.PIN3CTRL = PORT_PULLUPEN_bm;
+    PORTA.PIN2CTRL = PORT_PULLUPEN_bm;  // Pull-up für SDA
+    PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
     
-    TWI0.MBAUD = 12;
+    // TWI0 konfigurieren
+    TWI0.MBAUD = 12;        // 100kHz bei 3.3MHz
     TWI0.MCTRLA = TWI_ENABLE_bm;
     TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     
@@ -76,11 +78,35 @@ bool twi_write(uint8_t data) {
 }
 
 uint8_t twi_read(bool ack) {
-    while (!(TWI0.MSTATUS & TWI_RIF_bm));
+    uart_send_string("TWI: Waiting for data...\r\n");
+    
+    // Warten auf Daten mit Timeout
+    uint16_t timeout = 1000;
+    while (!(TWI0.MSTATUS & TWI_RIF_bm) && timeout > 0) {
+        _delay_us(1);
+        timeout--;
+    }
+    
+    if (timeout == 0) {
+        uart_send_string("TWI: Timeout waiting for data!\r\n");
+        return 0;
+    }
     
     uint8_t data = TWI0.MDATA;
     
-    TWI0.MCTRLB = ack ? TWI_MCMD_RECVTRANS_gc : TWI_MCMD_STOP_gc;
+    uart_send_string("TWI: Received data 0x");
+    uart_send_byte((data >> 4) < 10 ? '0' + (data >> 4) : 'A' + (data >> 4) - 10);
+    uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
+    // ACK/NACK senden
+    if (ack) {
+        uart_send_string("TWI: Sending ACK\r\n");
+        TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
+    } else {
+        uart_send_string("TWI: Sending NACK and STOP\r\n");
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+    }
     
     return data;
 }
