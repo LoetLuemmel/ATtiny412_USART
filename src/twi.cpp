@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <util/delay.h>
 #include "twi.h"
 #include "uart.h"
 
@@ -17,25 +18,59 @@ void twi_init(void) {
 }
 
 bool twi_start(uint8_t addr) {
+    uart_send_string("TWI: Start with addr 0x");
+    uart_send_byte((addr >> 4) < 10 ? '0' + (addr >> 4) : 'A' + (addr >> 4) - 10);
+    uart_send_byte((addr & 0x0F) < 10 ? '0' + (addr & 0x0F) : 'A' + (addr & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
     TWI0.MADDR = addr;
     
-    while (!(TWI0.MSTATUS & TWI_WIF_bm));
+    // Warten auf RXACK mit Timeout
+    uint16_t timeout = 1000;
+    while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
+        _delay_us(1);
+        timeout--;
+    }
+    
+    if (timeout == 0) {
+        uart_send_string("TWI: Timeout waiting for ACK!\r\n");
+        return false;
+    }
     
     if (TWI0.MSTATUS & TWI_RXACK_bm) {
         uart_send_string("TWI: No ACK received!\r\n");
         return false;
     }
+    
+    uart_send_string("TWI: Start successful\r\n");
     return true;
 }
 
 bool twi_write(uint8_t data) {
+    uart_send_string("TWI: Writing data 0x");
+    uart_send_byte((data >> 4) < 10 ? '0' + (data >> 4) : 'A' + (data >> 4) - 10);
+    uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
     TWI0.MDATA = data;
     
-    while (!(TWI0.MSTATUS & TWI_WIF_bm));
+    // Warten auf Write Complete mit Timeout
+    uint16_t timeout = 1000;
+    while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
+        _delay_us(1);
+        timeout--;
+    }
+    
+    if (timeout == 0) {
+        uart_send_string("TWI: Timeout waiting for write!\r\n");
+        return false;
+    }
     
     bool success = !(TWI0.MSTATUS & TWI_RXACK_bm);
     if (!success) {
         uart_send_string("TWI: Write failed!\r\n");
+    } else {
+        uart_send_string("TWI: Write successful\r\n");
     }
     return success;
 }

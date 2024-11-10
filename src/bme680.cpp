@@ -10,8 +10,14 @@ static struct bme680_calib calib;
 bool bme680_init(void) {
     uart_send_string("Performing soft reset...\r\n");
     
-    // Soft Reset
-    bme680_write_register(0xE0, 0xB6);
+    // Soft Reset mit Debug
+    uart_send_string("Writing reset command...\r\n");
+    if (!bme680_write_register(0xE0, 0xB6)) {
+        uart_send_string("Failed to write reset command!\r\n");
+        return false;
+    }
+    
+    uart_send_string("Waiting after reset...\r\n");
     _delay_ms(5);
     
     uart_send_string("Reading chip ID...\r\n");
@@ -64,12 +70,31 @@ int16_t bme680_read_temperature(void) {
     return bme680_calc_temperature(adc_temp, &calib);
 }
 
-void bme680_write_register(uint8_t reg, uint8_t value) {
-    twi_start(BME680_ADDR << 1);
-    twi_write(reg);
-    twi_write(value);
+bool bme680_write_register(uint8_t reg, uint8_t value) {
+    uart_send_string("TWI: Writing to register 0x");
+    uart_send_byte((reg >> 4) < 10 ? '0' + (reg >> 4) : 'A' + (reg >> 4) - 10);
+    uart_send_byte((reg & 0x0F) < 10 ? '0' + (reg & 0x0F) : 'A' + (reg & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
+    if (!twi_start(BME680_ADDR << 1)) {
+        uart_send_string("TWI: Start failed\r\n");
+        return false;
+    }
+    
+    if (!twi_write(reg)) {
+        uart_send_string("TWI: Register write failed\r\n");
+        twi_stop();
+        return false;
+    }
+    
+    if (!twi_write(value)) {
+        uart_send_string("TWI: Value write failed\r\n");
+        twi_stop();
+        return false;
+    }
+    
     twi_stop();
-    twi_init();
+    return true;
 }
 
 uint8_t bme680_read_register(uint8_t reg) {
