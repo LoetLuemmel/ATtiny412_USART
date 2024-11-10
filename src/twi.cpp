@@ -12,13 +12,20 @@ void twi_init(void) {
     PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
     
     // TWI0 konfigurieren
-    TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit für bessere Stabilität
+    TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit
     TWI0.MCTRLA = TWI_ENABLE_bm;
+    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     
     // Bus zurücksetzen
+    for(uint8_t i = 0; i < 9; i++) {
+        PORTA.DIRSET = PIN3_bm;     // SCL als Ausgang
+        _delay_us(5);
+        PORTA.DIRCLR = PIN3_bm;     // SCL als Eingang
+        _delay_us(5);
+    }
+    
     TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-    _delay_ms(10);  // Längere Wartezeit
-    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    _delay_ms(10);
     
     uart_send_string("TWI initialized\r\n");
 }
@@ -39,7 +46,7 @@ bool twi_start(uint8_t addr) {
     TWI0.MADDR = addr;
     
     // Warten auf RXACK mit Timeout
-    uint16_t timeout = 1000;
+    uint16_t timeout = 5000;  // Längerer Timeout
     while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
         _delay_us(1);
         timeout--;
@@ -48,7 +55,7 @@ bool twi_start(uint8_t addr) {
     if (timeout == 0 || (TWI0.MSTATUS & TWI_RXACK_bm)) {
         uart_send_string("TWI: Start failed\r\n");
         TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-        _delay_ms(1);  // Warten nach Stop
+        _delay_ms(1);
         return false;
     }
     
@@ -88,8 +95,12 @@ bool twi_write(uint8_t data) {
 uint8_t twi_read(bool ack) {
     uart_send_string("TWI: Waiting for data...\r\n");
     
+    // Warten auf RIF
+    TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
+    _delay_us(100);
+    
     // Warten auf Daten mit Timeout
-    uint16_t timeout = 5000;  // Längerer Timeout
+    uint16_t timeout = 5000;
     while (!(TWI0.MSTATUS & TWI_RIF_bm) && timeout > 0) {
         _delay_us(1);
         timeout--;
@@ -109,9 +120,9 @@ uint8_t twi_read(bool ack) {
     uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
     uart_send_string("\r\n");
     
-    // ACK/NACK senden und warten
+    // ACK/NACK senden
     TWI0.MCTRLB = ack ? TWI_MCMD_RECVTRANS_gc : TWI_MCMD_STOP_gc;
-    _delay_us(100);  // Warten nach ACK/NACK
+    _delay_us(100);
     
     return data;
 }
