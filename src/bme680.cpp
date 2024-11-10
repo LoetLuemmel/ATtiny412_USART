@@ -51,32 +51,18 @@ bool bme680_init(void) {
     uart_send_byte((chip_id & 0x0F) < 10 ? '0' + (chip_id & 0x0F) : 'A' + (chip_id & 0x0F) - 10);
     uart_send_string("\r\n");
     
-    // if (chip_id != 0x61) {  // Auskommentiert - akzeptiere auch 0x60
-    //     uart_send_string("Error: Wrong chip ID!\r\n");
-    //     return false;
-    // }
-    
-    uart_send_string("Reading calibration data...\r\n");
-    
-    if (!read_calibration_data()) {
-        uart_send_string("Failed to read calibration data!\r\n");
+    if (chip_id != 0x61) {
         return false;
     }
     
-    // Längere Wartezeit nach Reset
-    _delay_ms(100);
+    _delay_ms(10);
     
-    // Gas-Messung deaktivieren
-    if (!bme680_write_register(BME680_REG_CTRL_GAS1, 0x00)) {
-        return false;
-    }
+    // Kalibrierungsdaten lesen
+    uint8_t cal_t1_lsb = bme680_read_register(BME680_REG_T1_LSB);
+    _delay_ms(10);
+    uint8_t cal_t1_msb = bme680_read_register(BME680_REG_T1_MSB);
+    _delay_ms(10);
     
-    // Temperaturmessung konfigurieren
-    if (!twi_write_reg(BME680_REG_CTRL_MEAS, 0x20)) {  // Temperature only
-        return false;
-    }
-    
-    uart_send_string("Initialization complete\r\n");
     return true;
 }
 
