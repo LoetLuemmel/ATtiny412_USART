@@ -12,22 +12,20 @@ int main(void) {
     uart_send_string("-----------\r\n");
     
     if (bme680_init()) {
-        uart_send_string("BME680 initialized successfully\r\n\n");
+        uart_send_string("Sensor initialized\r\n\n");
     }
     
     while(1) {
         int16_t temp = bme680_read_temperature();
         
-        uart_send_string("Temperature: ");
-        
         // Vorkomma
-        uart_send_byte('0' + (temp/1000) % 10);
-        uart_send_byte('0' + (temp/100) % 10);
+        uart_send_byte('0' + (temp/1000) % 10);  // Zehnerstelle
+        uart_send_byte('0' + (temp/100) % 10);   // Einerstelle
         uart_send_byte('.');
         // Nachkomma
-        uart_send_byte('0' + (temp/10) % 10);
-        uart_send_byte('0' + temp % 10);
-        uart_send_string(" C\r\n");
+        uart_send_byte('0' + (temp/10) % 10);    // Zehntelstelle
+        uart_send_byte('0' + temp % 10);         // Hundertstelstelle
+        uart_send_string(" °C\r\n");             // Grad-Symbol und Einheit
         
         _delay_ms(10000);  // 10 Sekunden warten
     }

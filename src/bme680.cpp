@@ -8,9 +8,23 @@
 static struct bme680_calib calib;
 
 bool bme680_init(void) {
+    uart_send_string("Performing soft reset...\r\n");
+    
     // Soft Reset
     bme680_write_register(0xE0, 0xB6);
     _delay_ms(5);
+    
+    uart_send_string("Reading chip ID...\r\n");
+    uint8_t chip_id = bme680_read_register(0xD0);
+    uart_send_string("Chip ID: 0x");
+    uart_send_byte((chip_id >> 4) < 10 ? '0' + (chip_id >> 4) : 'A' + (chip_id >> 4) - 10);
+    uart_send_byte((chip_id & 0x0F) < 10 ? '0' + (chip_id & 0x0F) : 'A' + (chip_id & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
+    // if (chip_id != 0x61) {  // Auskommentiert - akzeptiere auch 0x60
+    //     uart_send_string("Error: Wrong chip ID!\r\n");
+    //     return false;
+    // }
     
     uart_send_string("Reading calibration data...\r\n");
     
@@ -19,77 +33,33 @@ bool bme680_init(void) {
     uint8_t val_e8 = bme680_read_register(0xE8);
     calib.T1 = (val_e9 << 8) | val_e8;
     
-    uart_send_string("Raw T1: E9=0x");
-    uart_send_byte((val_e9 >> 4) < 10 ? '0' + (val_e9 >> 4) : 'A' + (val_e9 >> 4) - 10);
-    uart_send_byte((val_e9 & 0x0F) < 10 ? '0' + (val_e9 & 0x0F) : 'A' + (val_e9 & 0x0F) - 10);
-    uart_send_string(" E8=0x");
-    uart_send_byte((val_e8 >> 4) < 10 ? '0' + (val_e8 >> 4) : 'A' + (val_e8 >> 4) - 10);
-    uart_send_byte((val_e8 & 0x0F) < 10 ? '0' + (val_e8 & 0x0F) : 'A' + (val_e8 & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
     uint8_t val_8a = bme680_read_register(0x8A);
     uint8_t val_8b = bme680_read_register(0x8B);
     calib.T2 = (val_8b << 8) | val_8a;
     
-    uart_send_string("Raw T2: 8B=0x");
-    uart_send_byte((val_8b >> 4) < 10 ? '0' + (val_8b >> 4) : 'A' + (val_8b >> 4) - 10);
-    uart_send_byte((val_8b & 0x0F) < 10 ? '0' + (val_8b & 0x0F) : 'A' + (val_8b & 0x0F) - 10);
-    uart_send_string(" 8A=0x");
-    uart_send_byte((val_8a >> 4) < 10 ? '0' + (val_8a >> 4) : 'A' + (val_8a >> 4) - 10);
-    uart_send_byte((val_8a & 0x0F) < 10 ? '0' + (val_8a & 0x0F) : 'A' + (val_8a & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
     calib.T3 = (int8_t)bme680_read_register(0x8C);
     
-    uart_send_string("Raw T3: 8C=0x");
-    uart_send_byte((calib.T3 >> 4) < 10 ? '0' + (calib.T3 >> 4) : 'A' + (calib.T3 >> 4) - 10);
-    uart_send_byte((calib.T3 & 0x0F) < 10 ? '0' + (calib.T3 & 0x0F) : 'A' + (calib.T3 & 0x0F) - 10);
-    uart_send_string("\r\n");
+    // Temperatur-Messung konfigurieren
+    bme680_write_register(0x74, 0x01);  // osrs_t = 1 (1x oversampling)
     
+    uart_send_string("Initialization complete\r\n");
     return true;
 }
 
 // Temperatur messen (in °C * 100)
 int16_t bme680_read_temperature(void) {
     // Messung starten
-    bme680_write_register(0x74, 0x01);  // osrs_t = 1 (1x oversampling)
-    
-    uart_send_string("Waiting for measurement...\r\n");
+    bme680_write_register(0x74, 0x21);  // Forced mode + 1x oversampling
     
     // Warten bis Messung fertig (measuring bit = 0)
-    uint8_t status;
-    do {
-        status = bme680_read_register(0x1D);
-        uart_send_string("Status = 0x");
-        uart_send_byte((status >> 4) < 10 ? '0' + (status >> 4) : 'A' + (status >> 4) - 10);
-        uart_send_byte((status & 0x0F) < 10 ? '0' + (status & 0x0F) : 'A' + (status & 0x0F) - 10);
-        uart_send_string("\r\n");
+    while(bme680_read_register(0x1D) & 0x20) {
         _delay_ms(10);
-    } while (status & 0x20);
-    
-    uart_send_string("Reading temperature...\r\n");
+    }
     
     // ADC-Wert lesen
-    uint8_t temp_msb = bme680_read_register(0x22);
-    uint8_t temp_lsb = bme680_read_register(0x23);
-    uint8_t temp_xlsb = bme680_read_register(0x24);
-    
-    uart_send_string("MSB = 0x");
-    uart_send_byte((temp_msb >> 4) < 10 ? '0' + (temp_msb >> 4) : 'A' + (temp_msb >> 4) - 10);
-    uart_send_byte((temp_msb & 0x0F) < 10 ? '0' + (temp_msb & 0x0F) : 'A' + (temp_msb & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
-    uart_send_string("LSB = 0x");
-    uart_send_byte((temp_lsb >> 4) < 10 ? '0' + (temp_lsb >> 4) : 'A' + (temp_lsb >> 4) - 10);
-    uart_send_byte((temp_lsb & 0x0F) < 10 ? '0' + (temp_lsb & 0x0F) : 'A' + (temp_lsb & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
-    uart_send_string("XLSB = 0x");
-    uart_send_byte((temp_xlsb >> 4) < 10 ? '0' + (temp_xlsb >> 4) : 'A' + (temp_xlsb >> 4) - 10);
-    uart_send_byte((temp_xlsb & 0x0F) < 10 ? '0' + (temp_xlsb & 0x0F) : 'A' + (temp_xlsb & 0x0F) - 10);
-    uart_send_string("\r\n");
-    
-    uint32_t adc_temp = ((uint32_t)temp_msb << 12) | ((uint32_t)temp_lsb << 4) | (temp_xlsb >> 4);
+    uint32_t adc_temp = ((uint32_t)bme680_read_register(0x22) << 12) | 
+                       ((uint32_t)bme680_read_register(0x23) << 4) | 
+                       (bme680_read_register(0x24) >> 4);
     
     return bme680_calc_temperature(adc_temp, &calib);
 }
@@ -120,13 +90,6 @@ struct bme680_calib* bme680_get_calib(void) {
 
 int16_t bme680_calc_temperature(uint32_t adc_temp, struct bme680_calib *calib) {
     int32_t var1, var2, t_fine;
-    
-    uart_send_string("ADC = ");
-    uart_send_byte((adc_temp >> 20) < 10 ? '0' + (adc_temp >> 20) : 'A' + (adc_temp >> 20) - 10);
-    uart_send_byte(((adc_temp >> 16) & 0x0F) < 10 ? '0' + ((adc_temp >> 16) & 0x0F) : 'A' + ((adc_temp >> 16) & 0x0F) - 10);
-    uart_send_byte(((adc_temp >> 12) & 0x0F) < 10 ? '0' + ((adc_temp >> 12) & 0x0F) : 'A' + ((adc_temp >> 12) & 0x0F) - 10);
-    uart_send_byte(((adc_temp >> 8) & 0x0F) < 10 ? '0' + ((adc_temp >> 8) & 0x0F) : 'A' + ((adc_temp >> 8) & 0x0F) - 10);
-    uart_send_string("\r\n");
     
     // Erste Berechnung
     var1 = ((((adc_temp >> 3) - ((int32_t)calib->T1 << 1))) * ((int32_t)calib->T2)) >> 11;
