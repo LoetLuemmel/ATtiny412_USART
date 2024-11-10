@@ -69,13 +69,8 @@ bool twi_write(uint8_t data) {
 uint8_t twi_read(bool ack) {
     uart_send_string("TWI: Waiting for data...\r\n");
     
-    // Master muss ACK/NACK vorbereiten bevor Daten empfangen werden
-    if (ack) {
-        TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
-    } else {
-        // Für NACK senden wir einfach einen STOP nach dem Lesen
-        TWI0.MCTRLB = TWI_MCMD_NOACT_gc;
-    }
+    // Warten auf RIF
+    _delay_us(100);  // Kurze Pause vor dem Lesen
     
     // Warten auf Daten mit Timeout
     uint16_t timeout = 1000;
@@ -97,10 +92,8 @@ uint8_t twi_read(bool ack) {
     uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
     uart_send_string("\r\n");
     
-    // Stop wenn NACK
-    if (!ack) {
-        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-    }
+    // ACK/NACK senden
+    TWI0.MCTRLB = ack ? TWI_MCMD_RECVTRANS_gc : TWI_MCMD_STOP_gc;
     
     return data;
 }
@@ -108,11 +101,9 @@ uint8_t twi_read(bool ack) {
 bool twi_start(uint8_t addr) {
     // Bus zurücksetzen wenn er nicht idle ist
     if ((TWI0.MSTATUS & TWI_BUSSTATE_gm) != TWI_BUSSTATE_IDLE_gc) {
-        TWI0.MCTRLA = 0;  // TWI ausschalten
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
         _delay_ms(1);
-        TWI0.MCTRLA = TWI_ENABLE_bm;  // TWI einschalten
         TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
-        _delay_ms(1);
     }
     
     uart_send_string("TWI: Start with addr 0x");
@@ -120,15 +111,11 @@ bool twi_start(uint8_t addr) {
     uart_send_byte((addr & 0x0F) < 10 ? '0' + (addr & 0x0F) : 'A' + (addr & 0x0F) - 10);
     uart_send_string("\r\n");
     
-    // Sicherstellen, dass der Bus bereit ist
-    TWI0.MCTRLB = TWI_MCMD_REPSTART_gc;
-    _delay_us(50);
-    
     TWI0.MADDR = addr;
     
     // Warten auf RXACK mit Timeout
     uint16_t timeout = 1000;
-    while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
+    while (!(TWI0.MSTATUS & (TWI_WIF_bm | TWI_RIF_bm)) && timeout > 0) {
         _delay_us(1);
         timeout--;
     }
