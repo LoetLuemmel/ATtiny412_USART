@@ -16,6 +16,12 @@
 #define BME680_REG_TEMP_LSB   0x23
 #define BME680_REG_TEMP_XLSB  0x24
 
+#define BME680_WAIT_PERIOD_MS  10000  // 10 Sekunden zwischen Messungen
+
+#define BME680_REG_CTRL_GAS1   0x71    // Gas control register
+#define BME680_REG_CTRL_MEAS   0x74    // Measurement control register
+#define BME680_REG_CONFIG      0x75    // Configuration register
+
 // Verwende die existierende Struktur
 static struct bme680_calib calib_data;
 
@@ -23,6 +29,7 @@ static struct bme680_calib calib_data;
 static bool twi_read_reg(uint8_t reg, uint8_t* data);
 static bool read_calibration_data(void);
 struct bme680_calib* bme680_get_calib(void);
+static bool twi_write_reg(uint8_t reg, uint8_t value);
 
 bool bme680_init(void) {
     uart_send_string("Performing soft reset...\r\n");
@@ -35,7 +42,7 @@ bool bme680_init(void) {
     }
     
     uart_send_string("Waiting after reset...\r\n");
-    _delay_ms(5);
+    _delay_ms(100);  // 100ms statt 10ms
     
     uart_send_string("Reading chip ID...\r\n");
     uint8_t chip_id = bme680_read_register(0xD0);
@@ -56,8 +63,18 @@ bool bme680_init(void) {
         return false;
     }
     
-    // Temperatur-Messung konfigurieren
-    bme680_write_register(0x74, 0x01);  // osrs_t = 1 (1x oversampling)
+    // Längere Wartezeit nach Reset
+    _delay_ms(100);
+    
+    // Gas-Messung deaktivieren
+    if (!bme680_write_register(BME680_REG_CTRL_GAS1, 0x00)) {
+        return false;
+    }
+    
+    // Temperaturmessung konfigurieren
+    if (!twi_write_reg(BME680_REG_CTRL_MEAS, 0x20)) {  // Temperature only
+        return false;
+    }
     
     uart_send_string("Initialization complete\r\n");
     return true;
@@ -86,6 +103,9 @@ static bool twi_read_reg(uint8_t reg, uint8_t* data) {
 
 static bool read_calibration_data(void) {
     uint8_t data[2];
+    
+    // Längere Wartezeit vor Kalibrierung
+    _delay_ms(100);
     
     // Read T1 (LSB + MSB)
     if (!twi_read_reg(BME680_REG_T1_LSB, &data[0]) ||
@@ -183,4 +203,23 @@ int16_t bme680_calc_temperature(uint32_t adc_temp, struct bme680_calib* calib) {
              ((int32_t)calib->T3)) >> 14;
     
     return (var1 + var2) / 100;
+}
+
+static bool twi_write_reg(uint8_t reg, uint8_t value) {
+    if (!twi_start(BME680_ADDR << 1)) {
+        return false;
+    }
+    
+    if (!twi_write(reg)) {
+        twi_stop();
+        return false;
+    }
+    
+    if (!twi_write(value)) {
+        twi_stop();
+        return false;
+    }
+    
+    twi_stop();
+    return true;
 }
