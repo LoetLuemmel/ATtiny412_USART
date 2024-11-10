@@ -1,6 +1,7 @@
 #include "bme680.h"
 #include "twi.h"
 #include "uart.h"
+#include "timer.h"
 #include <util/delay.h>
 
 #define BME680_ADDR 0x76
@@ -31,6 +32,9 @@ static bool read_calibration_data(void);
 struct bme680_calib* bme680_get_calib(void);
 static bool twi_write_reg(uint8_t reg, uint8_t value);
 
+// Funktionsprototyp am Anfang der Datei
+static bool twi_recover(void);
+
 bool bme680_init(void) {
     uart_send_string("Performing soft reset...\r\n");
     
@@ -57,11 +61,18 @@ bool bme680_init(void) {
     
     _delay_ms(10);
     
-    // Kalibrierungsdaten lesen
-    uint8_t cal_t1_lsb = bme680_read_register(BME680_REG_T1_LSB);
-    _delay_ms(10);
-    uint8_t cal_t1_msb = bme680_read_register(BME680_REG_T1_MSB);
-    _delay_ms(10);
+    // Längere Wartezeit nach Reset
+    _delay_ms(100);
+    
+    // Gas-Messung komplett deaktivieren
+    if (!bme680_write_register(BME680_REG_CTRL_GAS1, 0x00)) {
+        return false;
+    }
+    
+    // Nur Temperaturmessung aktivieren
+    if (!bme680_write_register(BME680_REG_CTRL_MEAS, 0x20)) { 
+        return false;
+    }
     
     return true;
 }
@@ -118,6 +129,15 @@ static bool read_calibration_data(void) {
 }
 
 int16_t bme680_read_temperature(void) {
+    static uint32_t last_read = 0;
+    uint32_t now = millis();
+    
+    // 10 Sekunden zwischen Messungen warten
+    if (now - last_read < 10000) {
+        return 0;  // Zu früh für neue Messung
+    }
+    last_read = now;
+    
     uint8_t data[3];
     
     // Read all 3 temperature registers in sequence
@@ -163,14 +183,35 @@ bool bme680_write_register(uint8_t reg, uint8_t value) {
 }
 
 uint8_t bme680_read_register(uint8_t reg) {
-    uint8_t value;
-    twi_start(BME680_ADDR << 1);
-    twi_write(reg);
-    twi_start((BME680_ADDR << 1) | 1);
-    value = twi_read(false);
-    twi_stop();
-    twi_init();
-    return value;
+    uint8_t data = 0;
+    uint8_t retries = 3;
+    
+    while (retries--) {
+        if (!twi_start(BME680_ADDR << 1)) {
+            twi_recover();
+            continue;
+        }
+        
+        if (!twi_write(reg)) {
+            twi_stop();
+            twi_recover();
+            continue;
+        }
+        
+        if (!twi_start((BME680_ADDR << 1) | 1)) {
+            twi_stop();
+            twi_recover();
+            continue;
+        }
+        
+        data = twi_read(false);
+        twi_stop();
+        twi_recover();
+        
+        return data;  // Erfolgreicher Read
+    }
+    
+    return 0;  // Alle Versuche fehlgeschlagen
 }
 
 // Funktion zum Abrufen der Kalibrierungswerte
@@ -207,5 +248,24 @@ static bool twi_write_reg(uint8_t reg, uint8_t value) {
     }
     
     twi_stop();
+    return true;
+}
+
+static bool twi_recover(void) {
+    // Kurze Pause
+    _delay_ms(1);
+    
+    // Bus-Status prüfen
+    if ((TWI0.MSTATUS & TWI_BUSSTATE_gm) == TWI_BUSSTATE_IDLE_gc) {
+        return true;  // Bus ist bereits OK
+    }
+    
+    // Stop senden
+    TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+    _delay_ms(1);
+    
+    // Bus-Status zurücksetzen
+    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    
     return true;
 }

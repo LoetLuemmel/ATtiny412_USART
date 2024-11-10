@@ -19,8 +19,8 @@ void timer_init(void) {
 
 uint32_t millis(void) {
     uint32_t m;
-    cli();
+    cli();  // Disable interrupts for atomic read
     m = timer_millis;
-    sei();
+    sei();  // Re-enable interrupts
     return m;
 } 
