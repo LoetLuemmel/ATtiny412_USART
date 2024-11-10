@@ -86,7 +86,20 @@ uint8_t twi_read(bool ack) {
 }
 
 void twi_stop(void) {
+    uart_send_string("TWI: Sending stop condition\r\n");
+    
     TWI0.MCTRLB = TWI_MCMD_STOP_gc;
     
-    while (TWI0.MSTATUS & TWI_BUSSTATE_BUSY_gc);
+    // Warten bis Bus frei ist mit Timeout
+    uint16_t timeout = 1000;
+    while ((TWI0.MSTATUS & TWI_BUSSTATE_gm) != TWI_BUSSTATE_IDLE_gc && timeout > 0) {
+        _delay_us(1);
+        timeout--;
+    }
+    
+    if (timeout == 0) {
+        uart_send_string("TWI: Timeout waiting for bus idle!\r\n");
+    } else {
+        uart_send_string("TWI: Stop successful\r\n");
+    }
 } 
