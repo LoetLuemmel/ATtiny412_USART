@@ -11,21 +11,27 @@ void twi_init(void) {
     PORTA.PIN2CTRL = PORT_PULLUPEN_bm;  // Pull-up für SDA
     PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
     
-    // TWI0 konfigurieren
-    TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit
-    TWI0.MCTRLA = TWI_ENABLE_bm;
-    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    // TWI komplett ausschalten
+    TWI0.MCTRLA = 0;
     
-    // Bus zurücksetzen
+    // Bus manuell zurücksetzen
+    PORTA.DIRSET = PIN3_bm;  // SCL als Ausgang
+    PORTA.OUTSET = PIN3_bm;  // SCL high
+    
     for(uint8_t i = 0; i < 9; i++) {
-        PORTA.DIRSET = PIN3_bm;     // SCL als Ausgang
+        PORTA.OUTCLR = PIN3_bm;  // SCL low
         _delay_us(5);
-        PORTA.DIRCLR = PIN3_bm;     // SCL als Eingang
+        PORTA.OUTSET = PIN3_bm;  // SCL high
         _delay_us(5);
     }
     
+    // TWI neu konfigurieren
+    TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit
     TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-    _delay_ms(10);
+    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    TWI0.MCTRLA = TWI_ENABLE_bm;
+    
+    _delay_ms(10);  // Warten bis alles stabil ist
     
     uart_send_string("TWI initialized\r\n");
 }
@@ -33,9 +39,11 @@ void twi_init(void) {
 bool twi_start(uint8_t addr) {
     // Bus zurücksetzen wenn er nicht idle ist
     if ((TWI0.MSTATUS & TWI_BUSSTATE_gm) != TWI_BUSSTATE_IDLE_gc) {
-        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+        TWI0.MCTRLA = 0;  // TWI ausschalten
         _delay_ms(1);
+        TWI0.MCTRLA = TWI_ENABLE_bm;  // TWI einschalten
         TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+        _delay_ms(1);
     }
     
     uart_send_string("TWI: Start with addr 0x");
@@ -46,7 +54,7 @@ bool twi_start(uint8_t addr) {
     TWI0.MADDR = addr;
     
     // Warten auf RXACK mit Timeout
-    uint16_t timeout = 5000;  // Längerer Timeout
+    uint16_t timeout = 5000;
     while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
         _delay_us(1);
         timeout--;
@@ -96,8 +104,7 @@ uint8_t twi_read(bool ack) {
     uart_send_string("TWI: Waiting for data...\r\n");
     
     // Warten auf RIF
-    TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
-    _delay_us(100);
+    _delay_us(100);  // Warten vor dem Lesen
     
     // Warten auf Daten mit Timeout
     uint16_t timeout = 5000;
