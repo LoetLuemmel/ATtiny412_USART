@@ -10,8 +10,8 @@ void twi_init(void) {
     
     // TWI0 Pins konfigurieren (PA2=SDA, PA3=SCL)
     PORTA.DIRCLR = PIN2_bm | PIN3_bm;  // Als Eingang konfigurieren
-    PORTA.PIN2CTRL = PORT_PULLUPEN_bm;  // Pull-up für SDA
-    PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
+    PORTA.PIN2CTRL = PORT_PULLUPEN_bm | PORT_ISC_INPUT_DISABLE_gc;  // Pull-up für SDA, Input Disable
+    PORTA.PIN3CTRL = PORT_PULLUPEN_bm | PORT_ISC_INPUT_DISABLE_gc;  // Pull-up für SCL, Input Disable
     
     // TWI komplett ausschalten
     TWI0.MCTRLA = 0;
@@ -39,7 +39,8 @@ void twi_init(void) {
     PORTA.DIRCLR = PIN2_bm | PIN3_bm;
     
     // TWI neu konfigurieren
-    TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit
+    TWI0.CTRLA = 0;  // Sicherstellen, dass alles aus ist
+    TWI0.MBAUD = 8;  // Höhere Geschwindigkeit testen
     TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     TWI0.MCTRLA = TWI_ENABLE_bm;
     
@@ -63,10 +64,14 @@ bool twi_start(uint8_t addr) {
     uart_send_byte((addr & 0x0F) < 10 ? '0' + (addr & 0x0F) : 'A' + (addr & 0x0F) - 10);
     uart_send_string("\r\n");
     
+    // Sicherstellen, dass der Bus bereit ist
+    TWI0.MCTRLB = TWI_MCMD_REPSTART_gc;
+    _delay_us(50);
+    
     TWI0.MADDR = addr;
     
     // Warten auf RXACK mit Timeout
-    uint16_t timeout = 5000;
+    uint16_t timeout = 1000;
     while (!(TWI0.MSTATUS & TWI_WIF_bm) && timeout > 0) {
         _delay_us(1);
         timeout--;
