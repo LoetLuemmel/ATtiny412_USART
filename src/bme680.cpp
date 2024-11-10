@@ -23,6 +23,12 @@ static struct bme680_calib calib_data;
 static bool twi_read_reg(uint8_t reg, uint8_t* data);
 static bool read_calibration_data(void);
 
+// Timing definitions
+#define BME680_RESET_DELAY_MS     10    // Delay after reset
+#define BME680_READ_DELAY_US     150    // Delay between register reads
+#define BME680_WRITE_DELAY_US    100    // Delay after write
+#define BME680_START_DELAY_US     50    // Delay after start condition
+
 bool bme680_init(void) {
     uart_send_string("Performing soft reset...\r\n");
     
@@ -63,23 +69,31 @@ bool bme680_init(void) {
 }
 
 static bool twi_read_reg(uint8_t reg, uint8_t* data) {
+    // Start + Write Address
     if (!twi_start(BME680_ADDR << 1)) {
         return false;
     }
+    _delay_us(BME680_START_DELAY_US);
     
+    // Write Register
     if (!twi_write(reg)) {
         twi_stop();
         return false;
     }
+    _delay_us(BME680_WRITE_DELAY_US);
     
+    // Repeated Start + Read Address
     if (!twi_start((BME680_ADDR << 1) | 1)) {
         twi_stop();
         return false;
     }
+    _delay_us(BME680_START_DELAY_US);
     
+    // Read Data
     *data = twi_read(false);
-    twi_stop();
+    _delay_us(BME680_READ_DELAY_US);
     
+    twi_stop();
     return true;
 }
 
