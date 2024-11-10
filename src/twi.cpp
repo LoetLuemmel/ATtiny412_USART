@@ -20,6 +20,13 @@ void twi_init(void) {
 }
 
 bool twi_start(uint8_t addr) {
+    // Bus zurücksetzen wenn er nicht idle ist
+    if ((TWI0.MSTATUS & TWI_BUSSTATE_gm) != TWI_BUSSTATE_IDLE_gc) {
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+        _delay_ms(1);
+        TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
+    }
+    
     uart_send_string("TWI: Start with addr 0x");
     uart_send_byte((addr >> 4) < 10 ? '0' + (addr >> 4) : 'A' + (addr >> 4) - 10);
     uart_send_byte((addr & 0x0F) < 10 ? '0' + (addr & 0x0F) : 'A' + (addr & 0x0F) - 10);
@@ -34,13 +41,9 @@ bool twi_start(uint8_t addr) {
         timeout--;
     }
     
-    if (timeout == 0) {
-        uart_send_string("TWI: Timeout waiting for ACK!\r\n");
-        return false;
-    }
-    
-    if (TWI0.MSTATUS & TWI_RXACK_bm) {
-        uart_send_string("TWI: No ACK received!\r\n");
+    if (timeout == 0 || (TWI0.MSTATUS & TWI_RXACK_bm)) {
+        uart_send_string("TWI: Start failed\r\n");
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
         return false;
     }
     
@@ -89,6 +92,7 @@ uint8_t twi_read(bool ack) {
     
     if (timeout == 0) {
         uart_send_string("TWI: Timeout waiting for data!\r\n");
+        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
         return 0;
     }
     
@@ -100,13 +104,7 @@ uint8_t twi_read(bool ack) {
     uart_send_string("\r\n");
     
     // ACK/NACK senden
-    if (ack) {
-        uart_send_string("TWI: Sending ACK\r\n");
-        TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
-    } else {
-        uart_send_string("TWI: Sending NACK and STOP\r\n");
-        TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-    }
+    TWI0.MCTRLB = ack ? TWI_MCMD_RECVTRANS_gc : TWI_MCMD_STOP_gc;
     
     return data;
 }
