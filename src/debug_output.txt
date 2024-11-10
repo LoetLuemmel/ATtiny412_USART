@@ -2333,3 +2333,107 @@ TWI: Timeout waiting for data!
 TWI: Sending stop condition
 TWI: Timeout waiting for bus idle!
 00.00 °C
+
+
+Initializing TWI...
+TWI: Start with addr 0xEC
+TWI: Start successful
+BME680 found at address 0x76
+TWI: Sending stop condition
+TWI: Stop successful
+TWI initialized
+BME680 Test
+-----------
+Performing soft reset...
+Writing reset command...
+TWI: Writing to register 0xE0
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0xE0
+TWI: Write successful
+TWI: Writing data 0xB6
+TWI: Write successful
+TWI: Sending stop condition
+TWI: Stop successful
+Waiting after reset...
+Reading chip ID...
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0xD0
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Received data 0x61
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+Initializing TWI...
+TWI: Start with addr 0xEC
+TWI: Start successful
+BME680 found at address 0x76
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI initialized
+Chip ID: 0x61
+Reading calibration data...
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x8A
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x8B
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x8C
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start failed
+TWI: Sending stop condition
+TWI: Stop successful
+Failed to read calibration data!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x22
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Received data 0x80
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x23
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+TWI: Start with addr 0xEC
+TWI: Start successful
+TWI: Writing data 0x24
+TWI: Write successful
+TWI: Start with addr 0xED
+TWI: Start successful
+TWI: Waiting for data...
+TWI: Timeout waiting for data!
+TWI: Sending stop condition
+TWI: Timeout waiting for bus idle!
+00.00 °C
+ *  Das Terminal wird von Aufgaben wiederverwendet, drücken Sie zum Schließen eine beliebige Taste. 

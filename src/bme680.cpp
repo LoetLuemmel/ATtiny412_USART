@@ -69,59 +69,76 @@ bool bme680_init(void) {
 }
 
 static bool twi_read_reg(uint8_t reg, uint8_t* data) {
-    // Start + Write Address
-    if (!twi_start(BME680_ADDR << 1)) {
-        return false;
-    }
-    _delay_us(BME680_START_DELAY_US);
+    uint8_t retries = 3;  // Mehrere Versuche pro Register
     
-    // Write Register
-    if (!twi_write(reg)) {
+    while (retries--) {
+        // Start + Write Address
+        if (!twi_start(BME680_ADDR << 1)) {
+            continue;
+        }
+        
+        // Write Register
+        if (!twi_write(reg)) {
+            twi_stop();
+            continue;
+        }
+        
+        _delay_us(BME680_WRITE_DELAY_US);
+        
+        // Repeated Start + Read Address
+        if (!twi_start((BME680_ADDR << 1) | 1)) {
+            twi_stop();
+            continue;
+        }
+        
+        // Read Data
+        *data = twi_read(false);
         twi_stop();
-        return false;
+        
+        // Wenn wir hier ankommen, war alles erfolgreich
+        return true;
     }
-    _delay_us(BME680_WRITE_DELAY_US);
     
-    // Repeated Start + Read Address
-    if (!twi_start((BME680_ADDR << 1) | 1)) {
-        twi_stop();
-        return false;
-    }
-    _delay_us(BME680_START_DELAY_US);
+    uart_send_string("Failed to read register 0x");
+    uart_send_byte((reg >> 4) < 10 ? '0' + (reg >> 4) : 'A' + (reg >> 4) - 10);
+    uart_send_byte((reg & 0x0F) < 10 ? '0' + (reg & 0x0F) : 'A' + (reg & 0x0F) - 10);
+    uart_send_string("\r\n");
     
-    // Read Data
-    *data = twi_read(false);
-    _delay_us(BME680_READ_DELAY_US);
-    
-    twi_stop();
-    return true;
+    return false;
 }
 
 static bool read_calibration_data(void) {
     uint8_t data[2];
     
-    // Read T1 (LSB + MSB)
-    if (!twi_read_reg(BME680_REG_T1_LSB, &data[0]) ||
-        !twi_read_reg(BME680_REG_T1_MSB, &data[1])) {
-        return false;
+    // Versuche mehrmals die Kalibrierungsdaten zu lesen
+    for (uint8_t attempt = 0; attempt < 3; attempt++) {
+        bool success = true;
+        
+        // Read T1 (LSB + MSB)
+        success &= twi_read_reg(BME680_REG_T1_LSB, &data[0]);
+        success &= twi_read_reg(BME680_REG_T1_MSB, &data[1]);
+        if (success) {
+            calib_data.T1 = (uint16_t)(data[1] << 8) | data[0];
+            
+            // Read T2 (LSB + MSB)
+            success &= twi_read_reg(BME680_REG_T2_LSB, &data[0]);
+            success &= twi_read_reg(BME680_REG_T2_MSB, &data[1]);
+            if (success) {
+                calib_data.T2 = (int16_t)(data[1] << 8) | data[0];
+                
+                // Read T3 (single byte)
+                uint8_t t3;
+                if (twi_read_reg(BME680_REG_T3, &t3)) {
+                    calib_data.T3 = (int8_t)t3;
+                    return true;  // Alles erfolgreich gelesen
+                }
+            }
+        }
+        
+        _delay_ms(10);  // Kurze Pause zwischen den Versuchen
     }
-    calib_data.T1 = (uint16_t)(data[1] << 8) | data[0];
     
-    // Read T2 (LSB + MSB)
-    if (!twi_read_reg(BME680_REG_T2_LSB, &data[0]) ||
-        !twi_read_reg(BME680_REG_T2_MSB, &data[1])) {
-        return false;
-    }
-    calib_data.T2 = (int16_t)(data[1] << 8) | data[0];
-    
-    // Read T3 (single byte)
-    uint8_t t3;
-    if (!twi_read_reg(BME680_REG_T3, &t3)) {
-        return false;
-    }
-    calib_data.T3 = (int8_t)t3;
-    
-    return true;
+    return false;
 }
 
 int16_t bme680_read_temperature(void) {
