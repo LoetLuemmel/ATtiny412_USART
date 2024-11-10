@@ -3,6 +3,8 @@
 #include "twi.h"
 #include "uart.h"
 
+#define BME680_ADDR 0x77  // Ändern wir die Adresse auf die alternative Adresse
+
 void twi_init(void) {
     uart_send_string("Initializing TWI...\r\n");
     
@@ -13,25 +15,35 @@ void twi_init(void) {
     
     // TWI komplett ausschalten
     TWI0.MCTRLA = 0;
+    _delay_ms(10);
     
     // Bus manuell zurücksetzen
-    PORTA.DIRSET = PIN3_bm;  // SCL als Ausgang
-    PORTA.OUTSET = PIN3_bm;  // SCL high
+    PORTA.DIRSET = PIN2_bm | PIN3_bm;  // Beide als Ausgang
+    PORTA.OUTSET = PIN2_bm | PIN3_bm;  // Beide high
+    _delay_ms(1);
     
     for(uint8_t i = 0; i < 9; i++) {
         PORTA.OUTCLR = PIN3_bm;  // SCL low
-        _delay_us(5);
+        _delay_us(10);
         PORTA.OUTSET = PIN3_bm;  // SCL high
-        _delay_us(5);
+        _delay_us(10);
     }
+    
+    // SDA Transition während SCL high (STOP condition)
+    PORTA.OUTCLR = PIN2_bm;  // SDA low
+    _delay_us(10);
+    PORTA.OUTSET = PIN2_bm;  // SDA high
+    _delay_us(10);
+    
+    // Pins zurück als Eingang
+    PORTA.DIRCLR = PIN2_bm | PIN3_bm;
     
     // TWI neu konfigurieren
     TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit
-    TWI0.MCTRLB = TWI_MCMD_STOP_gc;
     TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     TWI0.MCTRLA = TWI_ENABLE_bm;
     
-    _delay_ms(10);  // Warten bis alles stabil ist
+    _delay_ms(10);
     
     uart_send_string("TWI initialized\r\n");
 }
@@ -103,8 +115,9 @@ bool twi_write(uint8_t data) {
 uint8_t twi_read(bool ack) {
     uart_send_string("TWI: Waiting for data...\r\n");
     
-    // Warten auf RIF
-    _delay_us(100);  // Warten vor dem Lesen
+    // Explizit RECVTRANS senden
+    TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
+    _delay_us(100);
     
     // Warten auf Daten mit Timeout
     uint16_t timeout = 5000;
