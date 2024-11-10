@@ -5,7 +5,23 @@
 
 #define BME680_ADDR 0x76
 
-static struct bme680_calib calib;
+// BME680 Register Map
+#define BME680_REG_T1_LSB     0x8A
+#define BME680_REG_T1_MSB     0x8B
+#define BME680_REG_T2_LSB     0x8C
+#define BME680_REG_T2_MSB     0x8D
+#define BME680_REG_T3         0x8E
+
+#define BME680_REG_TEMP_MSB   0x22
+#define BME680_REG_TEMP_LSB   0x23
+#define BME680_REG_TEMP_XLSB  0x24
+
+// Verwende die existierende Struktur
+static struct bme680_calib calib_data;
+
+// Function prototypes
+static bool twi_read_reg(uint8_t reg, uint8_t* data);
+static bool read_calibration_data(void);
 
 bool bme680_init(void) {
     uart_send_string("Performing soft reset...\r\n");
@@ -34,16 +50,10 @@ bool bme680_init(void) {
     
     uart_send_string("Reading calibration data...\r\n");
     
-    // Temperatur-Kalibrierung
-    uint8_t val_e9 = bme680_read_register(0xE9);
-    uint8_t val_e8 = bme680_read_register(0xE8);
-    calib.T1 = (val_e9 << 8) | val_e8;
-    
-    uint8_t val_8a = bme680_read_register(0x8A);
-    uint8_t val_8b = bme680_read_register(0x8B);
-    calib.T2 = (val_8b << 8) | val_8a;
-    
-    calib.T3 = (int8_t)bme680_read_register(0x8C);
+    if (!read_calibration_data()) {
+        uart_send_string("Failed to read calibration data!\r\n");
+        return false;
+    }
     
     // Temperatur-Messung konfigurieren
     bme680_write_register(0x74, 0x01);  // osrs_t = 1 (1x oversampling)
@@ -52,22 +62,70 @@ bool bme680_init(void) {
     return true;
 }
 
-// Temperatur messen (in °C * 100)
-int16_t bme680_read_temperature(void) {
-    // Messung starten
-    bme680_write_register(0x74, 0x21);  // Forced mode + 1x oversampling
-    
-    // Warten bis Messung fertig (measuring bit = 0)
-    while(bme680_read_register(0x1D) & 0x20) {
-        _delay_ms(10);
+static bool twi_read_reg(uint8_t reg, uint8_t* data) {
+    if (!twi_start(BME680_ADDR << 1)) {
+        return false;
     }
     
-    // ADC-Wert lesen
-    uint32_t adc_temp = ((uint32_t)bme680_read_register(0x22) << 12) | 
-                       ((uint32_t)bme680_read_register(0x23) << 4) | 
-                       (bme680_read_register(0x24) >> 4);
+    if (!twi_write(reg)) {
+        twi_stop();
+        return false;
+    }
     
-    return bme680_calc_temperature(adc_temp, &calib);
+    if (!twi_start((BME680_ADDR << 1) | 1)) {
+        twi_stop();
+        return false;
+    }
+    
+    *data = twi_read(false);
+    twi_stop();
+    
+    return true;
+}
+
+static bool read_calibration_data(void) {
+    uint8_t data[2];
+    
+    // Read T1 (LSB + MSB)
+    if (!twi_read_reg(BME680_REG_T1_LSB, &data[0]) ||
+        !twi_read_reg(BME680_REG_T1_MSB, &data[1])) {
+        return false;
+    }
+    calib_data.T1 = (uint16_t)(data[1] << 8) | data[0];
+    
+    // Read T2 (LSB + MSB)
+    if (!twi_read_reg(BME680_REG_T2_LSB, &data[0]) ||
+        !twi_read_reg(BME680_REG_T2_MSB, &data[1])) {
+        return false;
+    }
+    calib_data.T2 = (int16_t)(data[1] << 8) | data[0];
+    
+    // Read T3 (single byte)
+    uint8_t t3;
+    if (!twi_read_reg(BME680_REG_T3, &t3)) {
+        return false;
+    }
+    calib_data.T3 = (int8_t)t3;
+    
+    return true;
+}
+
+int16_t bme680_read_temperature(void) {
+    uint8_t data[3];
+    
+    // Read all 3 temperature registers in sequence
+    if (!twi_read_reg(BME680_REG_TEMP_MSB, &data[0]) ||
+        !twi_read_reg(BME680_REG_TEMP_LSB, &data[1]) ||
+        !twi_read_reg(BME680_REG_TEMP_XLSB, &data[2])) {
+        return 0;
+    }
+    
+    // Combine the bytes into a 20-bit value
+    uint32_t adc_temp = ((uint32_t)data[0] << 12) | 
+                       ((uint32_t)data[1] << 4) | 
+                       (data[2] >> 4);
+    
+    return bme680_calc_temperature(adc_temp, &calib_data);
 }
 
 bool bme680_write_register(uint8_t reg, uint8_t value) {
@@ -110,21 +168,17 @@ uint8_t bme680_read_register(uint8_t reg) {
 
 // Funktion zum Abrufen der Kalibrierungswerte
 struct bme680_calib* bme680_get_calib(void) {
-    return &calib;
+    return &calib_data;
 }
 
-int16_t bme680_calc_temperature(uint32_t adc_temp, struct bme680_calib *calib) {
-    int32_t var1, var2, t_fine;
+int16_t bme680_calc_temperature(uint32_t adc_temp, struct bme680_calib* calib) {
+    int32_t var1, var2;
     
-    // Erste Berechnung
     var1 = ((((adc_temp >> 3) - ((int32_t)calib->T1 << 1))) * ((int32_t)calib->T2)) >> 11;
     
-    // Zweite Berechnung
-    var2 = (((((adc_temp >> 4) - ((int32_t)calib->T1)) * ((adc_temp >> 4) - ((int32_t)calib->T1))) >> 12) * ((int32_t)calib->T3)) >> 14;
+    var2 = (((((adc_temp >> 4) - ((int32_t)calib->T1)) * 
+              ((adc_temp >> 4) - ((int32_t)calib->T1))) >> 12) * 
+              ((int32_t)calib->T3)) >> 14;
     
-    // t_fine berechnen
-    t_fine = var1 + var2;
-    
-    // Temperatur berechnen (in °C * 100)
-    return ((t_fine * 5 + 128) >> 8) / 10;
-} 
+    return (var1 + var2) / 100;
+}
