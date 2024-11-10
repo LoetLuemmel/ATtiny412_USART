@@ -12,13 +12,13 @@ void twi_init(void) {
     PORTA.PIN3CTRL = PORT_PULLUPEN_bm;  // Pull-up für SCL
     
     // TWI0 konfigurieren
-    TWI0.MBAUD = 12;        // 100kHz bei 3.3MHz
+    TWI0.MBAUD = 32;        // Langsamere Geschwindigkeit für bessere Stabilität
     TWI0.MCTRLA = TWI_ENABLE_bm;
-    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     
     // Bus zurücksetzen
     TWI0.MCTRLB = TWI_MCMD_STOP_gc;
-    _delay_ms(1);
+    _delay_ms(10);  // Längere Wartezeit
+    TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
     
     uart_send_string("TWI initialized\r\n");
 }
@@ -89,7 +89,7 @@ uint8_t twi_read(bool ack) {
     uart_send_string("TWI: Waiting for data...\r\n");
     
     // Warten auf Daten mit Timeout
-    uint16_t timeout = 1000;
+    uint16_t timeout = 5000;  // Längerer Timeout
     while (!(TWI0.MSTATUS & TWI_RIF_bm) && timeout > 0) {
         _delay_us(1);
         timeout--;
@@ -98,6 +98,7 @@ uint8_t twi_read(bool ack) {
     if (timeout == 0) {
         uart_send_string("TWI: Timeout waiting for data!\r\n");
         TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+        _delay_ms(1);
         return 0;
     }
     
@@ -108,10 +109,42 @@ uint8_t twi_read(bool ack) {
     uart_send_byte((data & 0x0F) < 10 ? '0' + (data & 0x0F) : 'A' + (data & 0x0F) - 10);
     uart_send_string("\r\n");
     
-    // ACK/NACK senden
+    // ACK/NACK senden und warten
     TWI0.MCTRLB = ack ? TWI_MCMD_RECVTRANS_gc : TWI_MCMD_STOP_gc;
+    _delay_us(100);  // Warten nach ACK/NACK
     
     return data;
+}
+
+bool bme680_read_register(uint8_t reg, uint8_t *data) {
+    uart_send_string("TWI: Reading register 0x");
+    uart_send_byte((reg >> 4) < 10 ? '0' + (reg >> 4) : 'A' + (reg >> 4) - 10);
+    uart_send_byte((reg & 0x0F) < 10 ? '0' + (reg & 0x0F) : 'A' + (reg & 0x0F) - 10);
+    uart_send_string("\r\n");
+    
+    // Schreibe Register-Adresse
+    if (!twi_start(BME680_ADDR << 1)) {
+        uart_send_string("TWI: Start (write) failed\r\n");
+        return false;
+    }
+    
+    if (!twi_write(reg)) {
+        uart_send_string("TWI: Register write failed\r\n");
+        twi_stop();
+        return false;
+    }
+    
+    // Repeated Start für Lesen
+    _delay_us(100);  // Kurze Pause vor Repeated Start
+    if (!twi_start((BME680_ADDR << 1) | 1)) {
+        uart_send_string("TWI: Start (read) failed\r\n");
+        twi_stop();
+        return false;
+    }
+    
+    // Lese Daten
+    *data = twi_read(false);  // NACK und STOP
+    return true;
 }
 
 void twi_stop(void) {
