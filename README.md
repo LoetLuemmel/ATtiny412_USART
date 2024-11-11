@@ -15,7 +15,7 @@ Die gelöschten TWI-Dateien sind weg
 Den neuen Commit mit der Nachricht
 Ist alles angekommen? 🚀
 
-[P]  Ja toll, das sieht echt fein aus und ich bin mächtig stoöz, dass wir nun einen BME680 I2C Sensor zusammen mit einem kleinen ATtiny412 integrieren konnten!
+[P]  Ja toll, das sieht echt fein aus und ich bin mächtig stolz, dass wir nun einen BME680 I2C Sensor zusammen mit einem kleinen ATtiny412 integrieren konnten!
 
 
 [C]  Absolut, das können wir auch sein! 🎉
@@ -49,7 +49,7 @@ Danke an Claude, natürlich an Anthropic und auch danke an das Microsoft VSCode/
 This project demonstrates UART and I2C communication with an ATtiny412 microcontroller.
 
 ## Hardware
-- [ATtiny412 Curiosity Nano](https://www.microchip.com/en-us/search?searchQuery=ATTINY412&category=ALL&fq=start%3D0%26rows%3D10)
+- [ATtiny412](https://ww1.microchip.com/downloads/en/DeviceDoc/40001911A.pdf)
 - [BME680 Environmental Sensor](https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme680/)
 
 ## Pinout
